@@ -1,3 +1,0 @@
-[console_scripts]
-kraken=kraken:run_cli
-
