@@ -1,0 +1,136 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ kind.Namespace.part }}
+{%- if kind.Namespace.global_env == "production" %}
+  namespace: {{ kind.Namespace.project_name }}
+{%- else %}
+  namespace: {{ kind.Namespace.project_name }}-{{ kind.Namespace.global_env }}
+{%- endif %}
+spec:
+  selector:
+    matchLabels:
+      run: {{ kind.Namespace.part }}
+  template:
+    metadata:
+      labels:
+        run: {{ kind.Namespace.part }}
+    spec:
+{%- if kind.DaemonSet.nodeSelector is defined %}
+      nodeSelector:
+{%- for i in kind.DaemonSet.nodeSelector %}
+{{ "        " + i + ": \"\""}}
+{%- endfor %}
+{%- endif %}
+      containers:
+{%- for a in kind.DaemonSet.containers %}
+      - image: {{ a.docker_img }}:{{ a.build_tag }}
+{%- if a.readiness is defined %}
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: {{ a.readiness.path }}
+            port: {{ a.readiness.port |default("80") }}
+{%- endif %}
+{%- if a.env is defined %}
+        env:
+{%- for item in a.env %}
+          - name: {{ item.name }}
+            value: "{{ item.value }}"
+{%- endfor %}
+{%- endif %}
+{%- if a.securityContext is defined %}
+        securityContext:
+          capabilities:
+            add:
+{%- for i in a.securityContext.capabilities %}
+              - {{ i }}
+{%- endfor %}
+{%- endif %}
+        imagePullPolicy: IfNotPresent
+        name: {{ a.name }}
+{%- if a.command is defined %}
+        command: {{ a.command }}
+{%- endif %}
+{%- if a.args is defined %}
+        args: {{ a.args }}
+{%- endif %}
+        ports:
+{%- if a.container_port is defined %}
+        - containerPort: {{ a.container_port }}
+          name: http
+          protocol: TCP
+{%- endif %}
+{%- if a.resources is defined %}
+        resources:
+          limits:
+            cpu: {{ a.resources.limits.cpu }}
+            memory: {{ a.resources.limits.memory }}
+          requests:
+            cpu: {{ a.resources.requests.cpu }}
+            memory: {{ a.resources.requests.memory }}
+{%- else %}
+        resources:
+          limits:
+            cpu: "1"
+            memory: 2Gi
+          requests:
+            cpu: 100m
+            memory: 256Mi
+{%- endif %}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+{%- if a.configmap is defined %}
+        volumeMounts:
+{%- for z in a.configmap %}
+{%- for n in kind.ConfigMap %}
+{%- if n.name == z %}
+        - mountPath: {{ n.file_path }}
+          name: {{ n.name }}
+          readOnly: true
+{%- endif %}
+{%- endfor %}
+{%- endfor %}
+{%- endif %}
+{%- if kind.DaemonSet.volumes is defined %}
+        volumeMounts:
+{%- for n in kind.DaemonSet.volumes %}
+        - mountPath: {{ n.podPath }}
+          name: {{ n.name }}
+{%- endfor %}
+{%- endif %}
+{%- endfor %}
+      volumes:
+{%- if kind.ConfigMap is defined %}
+{%- for n in kind.ConfigMap %}
+      - configMap:
+          defaultMode: 420
+          name: {{ n.name }}
+        name: {{ n.name }}
+{%- endfor %}
+{%- endif %}
+{%- if kind.DaemonSet.volumes is defined %}
+{%- for n in kind.DaemonSet.volumes %}
+      - hostPath:
+          path: {{ n.hostPath }}
+          type: {{ n.type|default("\"\"") }}
+        name: {{ n.name }}
+{%- endfor %}
+{%- endif %}
+      dnsPolicy: ClusterFirst
+      imagePullSecrets:
+      - name: dockerconfigjson
+      restartPolicy: {{ kind.DaemonSet.restartPolicy |default("Always") }}
+{%- if kind.DaemonSet.aliases is defined %}
+      hostAliases:
+{%- for i in kind.DaemonSet.aliases %}
+      - ip: {{ i.ip }}
+        hostnames:
+{%- for n in i.hosts %}
+          - {{ n }}
+{%- endfor %}
+{%- endfor %}
+{%- endif %}
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30

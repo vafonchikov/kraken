@@ -1,0 +1,62 @@
+# Rules common for all versions
+_all:
+  version:
+    type: string
+    allowed:
+      - '1.0'
+      - '1.1'
+      - '1.2'
+    required: true
+  environment:
+    type: string
+    maybe_nullable:
+      type: build
+
+# Version specification
+versions:
+  1.0:
+    kind:
+      type: dict
+      schema:
+        Namespace:
+          schema: v1.Namespace
+        Deployment:
+          schema: v1.Deployment
+          required: false
+        CronJob:
+          schema: v1.CronJob
+          required: false
+        Service:
+          schema: v1.Service
+          required: false
+        Secret: v1.Secret
+        Ingress:
+          schema: v1.Ingress
+          required: false
+        ConfigMap: v1.ConfigMap
+        Job:
+          schema: v1.Job
+          required: false
+  1.1:
+    kind:
+      type: dict
+      schema:
+        Namespace:
+          schema: v1.Namespace
+        Deployment:
+          schema: v1.1.Deployment
+          required: false
+        CronJob:
+          schema: v1.1.CronJob
+          required: false
+        Service:
+          schema: v1.Service
+          required: false
+        Secret: v1.Secret
+        Ingress:
+          schema: v1.Ingress
+          required: false
+        ConfigMap: v1.ConfigMap
+        Job:
+          schema: v1.1.Job
+          required: false

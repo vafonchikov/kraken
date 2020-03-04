@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ kind.Namespace.part }}
+{%- if kind.Namespace.global_env == "production" %}
+  namespace: {{ kind.Namespace.project_name }}
+{%- else %}
+  namespace: {{ kind.Namespace.project_name }}-{{ kind.Namespace.global_env }}
+{%- endif %}
+spec:
+  clusterIP: {{ kind.Service.clusterIP|default("") }}
+{%- if kind.Service.ports is defined %}
+  ports:
+{%- for item in kind.Service.ports %}
+    - port: {{ item.service_port }}
+      protocol: {{ item.protocol | default('TCP') }}
+      targetPort: {{ item.app_port }}
+      name: {{ item.name | default('port' + loop.index|string) }}
+{%- endfor %}
+{%- endif %}
+  selector:
+    run: {{ kind.Namespace.part }}
+  type: ClusterIP

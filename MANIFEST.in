@@ -1,0 +1,2 @@
+recursive-include kraken *.yaml
+recursive-include kraken *.yml

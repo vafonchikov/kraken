@@ -1,0 +1,283 @@
+# schema definitions (used in `schema: vX.SCHEMA_NAME`)
+schemas:
+  # common schemas
+  name_value_pair:
+    name:
+      type: string
+    value:
+      type: string
+      nullable: true
+
+  resource_limit:
+    cpu:
+      type: string
+      required: false
+    memory:
+      type: string
+      required: false
+
+  volume:
+    name:
+      type: string
+    hostPath:
+      type: string
+    podPath:
+      type: string
+
+  # component specifications
+  Service:
+    clusterIP:
+      type: string
+      allowed: ['None', '']
+      nullable: true
+    ports:
+      type: list
+      schema:
+        type: dict
+        schema:
+          service_port:
+            type: ['integer', 'string']
+            default: 80
+          app_port:
+            type: ['integer', 'string']
+            default: 80
+          protocol:
+            type: string
+            allowed: ['TCP', 'UDP']
+            default: 'TCP'
+          name:
+            type: string
+            required: false
+
+  Ingress:
+    name:
+      type: string
+      required: false
+    hosts:
+      type: list
+      schema:
+        type: dict
+        schema:
+          url:
+            type: string
+            maybe_nullable:
+              type: build
+          tls:
+            type: string
+    annotations:
+      type: list
+      schema:
+        type: dict
+        schema: v1.name_value_pair
+    service:
+      type: dict
+      schema:
+        name:
+          type: string
+        port:
+          type: string
+    cors:
+      type: dict
+      schema:
+        allow_origin:
+          type: string
+        allow_headers:
+          type: string
+        allow_method:
+          type: string
+
+  Namespace:
+    project_name:
+      type: string
+    global_env:
+      type: string
+      maybe_nullable:
+        type: build
+    part:
+      type: string
+
+  Container:
+    readiness:
+      type: dict
+      schema:
+        path:
+          type: string
+          required: false
+        port:
+          type: integer
+          required: false
+      required: false
+    resources:
+      type: dict
+      schema:
+        limits:
+          schema: v1.resource_limit
+          required: false
+        requests:
+          schema: v1.resource_limit
+          required: false
+      required: false
+    name:
+      type: string
+    build_tag:
+      type: string
+    docker_img:
+      type: string
+    container_port:
+      type: ['integer', 'string']
+      required: false
+    command:
+      type: list
+      schema:
+        type: string
+      required: false
+    args:
+      type: list
+      schema:
+        type: string
+      required: false
+    configmap:
+      type: list
+      schema:
+        type: string
+      required: false
+    securityContext:
+      type: dict
+      schema:
+        UID:
+          type: string
+          required: false
+        GID:
+          type: string
+          required: false
+        capabilities:
+          type: list
+          schema:
+            type: string
+          required: false
+      required: false
+    env:
+      type: list
+      schema:
+        schema: v1.name_value_pair
+      required: false
+
+  Deployment:
+    replicas:
+      type: integer
+      min: 0
+      required: false
+    selector:
+      type: string
+      required: false
+    aliases:
+      type: list
+      schema:
+        type: dict
+        schema:
+          ip:
+            type: string
+          hosts:
+            type: list
+            schema:
+              type: string
+    volumes:
+      type: list
+      schema:
+        schema: v1.volume
+      required: false
+    containers:
+      type: list
+      schema:
+        schema: v1.Container
+      required: true
+    nodeSelector:
+      type: list
+      schema:
+        type: string
+      required: false
+    tolerations:
+      type: list
+      schema:
+        type: dict
+        schema:
+          key:
+            type: string
+          effect:
+            type: string
+      required: false
+
+  CronJob:
+    schedule:
+      type: string
+    backoffLimit:
+      type: integer
+      min: 1
+    restartPolicy:
+      type: string
+      allowed: ['Never', 'OnFailure']
+    aliases:
+      type: list
+      schema:
+        type: dict
+        schema:
+          ip:
+            type: string
+          hosts:
+            type: list
+            schema:
+              type: string
+    volumes:
+      type: list
+      schema:
+        schema: v1.volume
+      required: false
+    containers:
+      type: list
+      schema:
+        schema: v1.Container
+      required: true
+
+  Job:
+    restartPolicy:
+      type: string
+      required: true
+    backoffLimit:
+      type: integer
+      required: true
+    nodeSelector:
+      type: list
+      schema:
+        type: string
+      required: false
+    volumes:
+      type: list
+      schema:
+        schema: v1.volume
+      required: false
+    containers:
+      type: list
+      schema:
+        schema: v1.Container
+      required: true
+
+# rules definitions. used directly as `key: RULE_DEFINITION`
+rules:
+  ConfigMap:
+    type: list
+    schema:
+      type: dict
+      schema:
+        name:
+          type: string
+        file_name:
+          type: string
+        file_path:
+          type: string
+    required: false
+
+  Secret:
+    type: list
+    schema:
+      type: string
+    required: false

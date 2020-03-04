@@ -1,0 +1,16 @@
+version: '1.0'
+kind:
+  Namespace:
+    project_name: '{{ CI_PROJECT_NAME }}'
+    global_env: '{{ CI_ENVIRONMENT_NAME }}'
+    part: backend
+  Ingress:
+    service:
+      name: backend
+      port: '80'
+    hosts:
+    - url: url.domain
+    annotations:
+      - name: nginx.ingress.kubernetes.io/proxy-body-size
+        value: "10m"
+environment: '{{ CI_RUNNER_DESCRIPTION }}'

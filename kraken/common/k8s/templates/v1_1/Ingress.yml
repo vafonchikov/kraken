@@ -1,0 +1,64 @@
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: {{ kind.Ingress.name|default(kind.Namespace.part) }}
+{%- if kind.Namespace.global_env == "production" %}
+  namespace: {{ kind.Namespace.project_name }}
+{%- else %}
+  namespace: {{ kind.Namespace.project_name }}-{{ kind.Namespace.global_env }}
+{%- endif %}
+  annotations:
+{%- if canary is defined %}
+{%- if canary == "always" %}
+    nginx.ingress.kubernetes.io/canary: "true"
+    nginx.ingress.kubernetes.io/canary-by-cookie: "{{ cookie }}"
+    nginx.ingress.kubernetes.io/canary-weight: "{{ weight }}"
+{%- endif %}
+{% else %}
+    nginx.ingress.kubernetes.io/rewrite-target: {{ kind.Ingress.rewrite_to|default("/") }}
+{%- if kind.Ingress.annotations is defined %}
+{%- for i in kind.Ingress.annotations %}
+{%- if environment|lower != "production" and i.name == "kubernetes.io/ingress.class" %}
+{%- else %}
+{{ '    ' + i.name + ': "' + i.value + '"'}}
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- if kind.Ingress.cors is defined %}
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-methods: {{ kind.Ingress.cors.allow_method|default("PUT, GET, POST, OPTIONS") }}
+    nginx.ingress.kubernetes.io/cors-allow-origin: {{ kind.Ingress.cors.allow_origin|default("*") }}
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+{%- if kind.Ingress.cors.allow_headers %}
+    nginx.ingress.kubernetes.io/cors-allow-headers: {{ kind.Ingress.cors.allow_headers }}
+{%- endif %}
+{%- endif %}
+{%- endif %}
+spec:
+  rules:
+{%- for i in kind.Ingress.hosts %}
+  - host: {{ i.url }}
+    http:
+      paths:
+{%- if kind.Ingress.service is defined %}
+      - path: {{ kind.Ingress.service.path|default("/") }}
+        backend:
+          serviceName: {{ kind.Ingress.service.name }}
+          servicePort: {{ kind.Ingress.service.port }}
+{%- else %}
+{%- for item in kind.Service.ports %}
+      - path: {{ item.path|default("/") }}
+        backend:
+          serviceName: {{ kind.Namespace.part }}
+          servicePort: {{ item.service_port }}
+{%- endfor %}
+{%- endif %}
+{%- endfor %}
+  tls:
+{%- for i in kind.Ingress.hosts %}
+{%- if i.tls is defined %}
+    - hosts:
+      - {{ i.url }}
+      secretName: {{ i.tls }}
+{%- endif %}
+{%- endfor %}

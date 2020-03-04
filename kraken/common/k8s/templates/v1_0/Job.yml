@@ -1,0 +1,67 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ kind.Namespace.part }}
+{%- if kind.Namespace.global_env == "production" %}
+  namespace: {{ kind.Namespace.project_name }}
+{%- else %}
+  namespace: {{ kind.Namespace.project_name }}-{{ kind.Namespace.global_env }}
+{%- endif %}
+spec:
+  backoffLimit: {{ kind.Job.backoffLimit }}
+  template:
+    spec:
+      containers:
+{%- for a in kind.Job.containers %}
+      - name: {{ a.name }}
+{%- if kind.Job.volumes is defined %}
+        volumeMounts:
+{%- for n in kind.Job.volumes %}
+        - mountPath: {{ n.podPath }}
+          name: {{ n.name }}
+{%- endfor %}
+{%- endif %}
+        image: {{ a.docker_img }}:{{ a.build_tag }}
+{%- if a.env is defined %}
+        env:
+{%- for item in a.env %}
+          - name: {{ item.name }}
+            value: "{{ item.value }}"
+{%- endfor %}
+{%- endif %}
+        imagePullPolicy: IfNotPresent
+{%- if a.command is defined %}
+        command: {{ a.command }}
+{%- if a.args is defined %}
+        args: {{ a.args }}
+{%- endif %}
+{%- endif %}
+{%- endfor %}
+      restartPolicy: {{ kind.Job.restartPolicy }}
+      imagePullSecrets:
+      - name: dockerconfigjson
+{%- if kind.Job.nodeSelector is defined %}
+      nodeSelector:
+{%- for i in kind.Job.nodeSelector %}
+{{ "        " + i + ": \"\""}}
+{%- endfor %}
+{%- endif %}
+{%- if kind.Job.volumes is defined %}
+      volumes:
+{%- for n in kind.Job.volumes %}
+{%- if n.type is undefined %}
+      - hostPath:
+          path: {{ n.hostPath }}
+          type: {{ n.type|default("\"\"") }}
+        name: {{ n.name }}
+{% endif %}
+{%- if n.type is defined %}
+{%- if n.type == 'Memory' %}
+      - emptyDir:
+          medium: {{ n.type }}
+          sizeLimit: {{ n.sizeLimit}}
+        name: {{ n.name }}
+{%- endif %}
+{%- endif %}
+{%- endfor %}
+{%- endif %}

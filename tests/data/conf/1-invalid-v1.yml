@@ -1,0 +1,39 @@
+kind:
+  Namespace:
+    project_name: '{{ CI_PROJECT_NAME }}'
+    global_env: '{{ CI_ENVIRONMENT_NAME }}'
+    part: backend
+  Deployment:
+    resources:
+      limits:
+        cpu: "1"
+        memory: "1536Mi"
+      requests:
+        cpu: "500m"
+        memory: "700Mi"
+    replicas: -1
+    aliases:
+    - ip: "127.0.0.1"
+      hosts:
+      - "url.domain"
+    volumes:
+      - name: mnt
+        hostPath: /mnt/
+        podPath: /mnt/
+    containers:
+    - name: app
+      container_port: no
+  Service:
+    clusterIP: None
+    ports:
+      - service_port: no
+        app_port: '80'
+        protocol: TCP
+  Secret: must be an array
+  Ingress:
+    hosts:
+    - url: 'url.domain'
+    annotations:
+      - name: nginx.ingress.kubernetes.io/proxy-body-size
+        value: "10m"
+environment: '{{ CI_RUNNER_DESCRIPTION }}'

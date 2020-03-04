@@ -1,0 +1,77 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: {{ kind.Namespace.part }}
+{%- if kind.Namespace.global_env == "production" %}
+  namespace: {{ kind.Namespace.project_name }}
+{%- else %}
+  namespace: {{ kind.Namespace.project_name }}-{{ kind.Namespace.global_env }}
+{%- endif %}
+spec:
+  schedule: "{{ kind.CronJob.schedule }}"
+  jobTemplate:
+    spec:
+      backoffLimit: {{ kind.CronJob.backoffLimit }}
+      template:
+        spec:
+{%- if kind.CronJob.nodeSelector is defined %}
+          nodeSelector:
+{%- for i in kind.CronJob.nodeSelector %}
+{{ "            " + i + ": \"\""}}
+{%- endfor %}
+{%- endif %}
+          containers:
+{%- for a in kind.CronJob.containers %}
+          - name: {{ a.name }}
+            image: {{ a.docker_img }}:{{ a.build_tag }}
+{%- if a.env is defined %}
+            env:
+{%- for item in a.env %}
+              - name: {{ item.name }}
+                value: "{{ item.value }}"
+{%- endfor %}
+{%- endif %}
+            imagePullPolicy: IfNotPresent
+{%- if a.command is defined %}
+            command: {{ a.command }}
+{%- endif %}
+{%- if a.args is defined %}
+            args: {{ a.args }}
+{%- endif %}
+{%- if a.resources is defined %}
+            resources:
+              limits:
+                cpu: {{ a.resources.limits.cpu }}
+                memory: {{ a.resources.limits.memory }}
+              requests:
+                cpu: {{ a.resources.requests.cpu }}
+                memory: {{ a.resources.requests.memory }}
+{%- else %}
+            resources:
+              limits:
+                cpu: "1"
+                memory: 2Gi
+              requests:
+                cpu: 100m
+                memory: 256Mi
+{%- endif %}
+{%- endfor %}
+{%- if kind.CronJob.volumes is defined %}
+            volumeMounts:
+{%- for n in kind.CronJob.volumes %}
+            - mountPath: {{ n.podPath }}
+              name: {{ n.name }}
+{%- endfor %}
+{%- endif %}
+          restartPolicy: {{ kind.CronJob.restartPolicy }}
+          imagePullSecrets:
+          - name: dockerconfigjson
+{%- if kind.CronJob.volumes is defined %}
+          volumes:
+{%- for n in kind.CronJob.volumes %}
+          - hostPath:
+              path: {{ n.hostPath }}
+              type: {{ n.type|default("\"\"") }}
+            name: {{ n.name }}
+{%- endfor %}
+{%- endif %}

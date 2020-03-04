@@ -1,0 +1,101 @@
+{#-
+  Variables:
+   - part_name
+   - has_deployment
+   - has_job
+   - has_cronjob
+   - containers:
+     - name
+     - build_tag
+     - docker_img
+     - command
+     - port
+   - use_env_file
+   - has_service
+   - service_port
+   - service_app_port
+   - has_ingress
+   - ingress_url
+   - ingress_service:
+     - name
+     - port
+   - has_secret
+#}
+version: '1.0'
+kind:
+{%- raw %}
+  Namespace:
+    project_name: {{ CI_PROJECT_NAME }}
+    global_env: {{ CI_ENVIRONMENT_NAME }}
+{%- endraw %}
+    part: {{ part_name }}
+{%- if has_deployment %}
+  Deployment:
+    replicas: 1
+{%- endif %}
+{%- if has_job %}
+  Job:
+    backoffLimit: 3
+    restartPolicy: Never
+{%- endif %}
+{%- if has_cronjob %}
+  CronJob:
+    schedule: "{{ schedule }}"
+    backoffLimit: 3
+    restartPolicy: Never
+{%- endif %}
+    containers:
+{%- for container in containers %}
+      - name: {{ container.name }}
+        build_tag: {{ container.build_tag | default('{{ CI_COMMIT_TAG|default(CI_COMMIT_SHORT_SHA) }}') }}
+        docker_img: {{ container.docker_img | default('{{ DOCKER_REGISTY }}/{{ CI_PROJECT_NAME }}/' + part_name) }}
+{%- if container.command %}
+        command: container.command
+{%- endif %}
+        env:
+          - name: RELEASE
+            value: {% raw %}"{{ CI_COMMIT_TAG|default(CI_COMMIT_SHORT_SHA) }}"{% endraw %}
+          - name: ENVIRONMENT
+            value: {% raw %}"{{ CI_ENVIRONMENT_NAME }}"{% endraw %}
+{%- if use_env_file %}
+          {{ _envs | indent(12) }}
+{%- endif %}
+{%- if container.port %}
+        container_port: {{ container.port }}
+{%- endif %}
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "128Mi"
+          limits:
+            cpu: "100m"
+            memory: '256Mi'
+{%- endfor %}
+{%- if has_service %}
+  Service:
+    clusterIP: None
+    ports:
+      - service_port: {{ service_port | default('80') }}
+        app_port: {{ service_app_port | default('80') }}
+        protocol: TCP
+{%- endif %}
+{%- if has_ingress %}
+  Ingress:
+{%- if ingress_service %}
+    service:
+      name: {{ ingress_service.name }}
+      port: {{ ingress_service.port }}
+{%- endif %}
+    hosts:
+      - url: {{ ingress_url | default('{{ CI_ENVIRONMENT_URL }}') }}
+    annotations:
+      - name: kubernetes.io/ingress.class
+        value: "nginx"
+{%- endif %}
+{%- if has_secret %}
+  Secret:
+    - dockerconfigjson
+{%- endif %}
+{%- raw %}
+environment: {{ CI_RUNNER_DESCRIPTION }}
+{%- endraw %}

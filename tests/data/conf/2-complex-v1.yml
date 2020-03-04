@@ -1,0 +1,54 @@
+version: '1.0'
+kind:
+  Namespace:
+    project_name: '{{ CI_PROJECT_NAME }}'
+    global_env: '{{ CI_ENVIRONMENT_NAME }}'
+    part: backend
+  Deployment:
+    resources:
+      limits:
+        cpu: "1"
+        memory: "1536Mi"
+      requests:
+        cpu: "500m"
+        memory: "700Mi"
+    replicas: 8
+    aliases:
+    - ip: "127.0.0.1"
+      hosts:
+      - "url.domain"
+    volumes:
+      - name: mnt
+        hostPath: /mnt/
+        podPath: /mnt/
+    containers:
+    - name: app
+      securityContext:
+        UID: "1000"
+        GID: "1000"
+        capabilities:
+          - SYS_PTRACE
+      command: ["sleep", "9999"]
+      build_tag: '3.7'
+      docker_img: 'alpine'
+      container_port: 80
+      env:
+        - name: APP_LOG
+          value: errorlog
+        - name: APP_DEBUG
+          value: "false"
+  Service:
+    clusterIP: None
+    ports:
+      - service_port: '80'
+        app_port: '80'
+        protocol: TCP
+  Secret:
+    - dockerconfigjson
+  Ingress:
+    hosts:
+    - url: 'url.domain'
+    annotations:
+      - name: nginx.ingress.kubernetes.io/proxy-body-size
+        value: "10m"
+environment: '{{ CI_RUNNER_DESCRIPTION }}'
